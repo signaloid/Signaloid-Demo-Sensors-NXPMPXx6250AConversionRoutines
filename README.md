@@ -5,7 +5,7 @@
 Example demonstrating real-time output uncertainty estimation for calibrated ADC values from the MPXx6250A sensor[^1].
 
 ## Introduction
-The MPXx6250A is a 20 to 250 kPa range integrated pressure sensors.
+The MPXx6250A is a 20 to 250 kPa range integrated pressure sensor.
 
 ## Getting started
 
