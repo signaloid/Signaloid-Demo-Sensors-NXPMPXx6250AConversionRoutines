@@ -19,6 +19,14 @@ If you forgot to clone with `--recursive` and end up with empty submodule direct
 	git submodule update --init
 ```
 
+## Running the application on the Signaloid Cloud Developer Platform
+To run this application on the [Signaloid Cloud Developer Platform](https://signaloid.io),
+you need a Signaloid account. You can sign up for a Signaloid account using [this link](https://get.signaloid.io).
+
+Once you have a Signaloid account, you can click the "add to signaloid.io" button at the
+top of this README to connect this repository to the Signaloid Cloud Developer Platform
+and run the application.
+
 ## Running the application locally
 Apart from using Signaloid's Cloud Compute Platform, you can compile and run this application
 locally. Local execution is essentially a native Monte Carlo implementation,
@@ -39,7 +47,7 @@ sudo apt-get install libgsl-dev libgslcblas0
 1. Compile natively (e.g., on Linux):
 ```
 cd src/
-gcc -I. -I/opt/local/include main.c utilities.c common.c uxhw.c -L/opt/local/lib -o native-exe -lgsl -lgslcblas -lm
+gcc -I. -I/opt/local/include main.c kernel.c utilities.c common.c uxhw.c -L/opt/local/lib -o native-exe -lgsl -lgslcblas -lm
 ```
 2. Run the application in the MonteCarlo mode, using (`-M`) command-line option:
 ```
@@ -91,6 +99,7 @@ Usage: Valid command-line arguments are:
 
 ---
 
-[^1]: [NXP MPXH6250A, 20 to 250 kPa, Absolute, Integrated Pressure Sensor Datasheet](https://www.nxp.com/docs/en/data-sheet/MPXH6250A.pdf).
+[^1]: [20 to 250 kPa, Absolute, Integrated Pressure Sensor Datasheet](https://www.nxp.com/docs/en/data-sheet/MPXH6250A.pdf).
 
 [^2]: [GNU Scientific Library](https://www.gnu.org/software/gsl/).
+

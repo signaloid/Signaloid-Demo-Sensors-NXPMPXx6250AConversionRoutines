@@ -20,29 +20,21 @@
  *	SOFTWARE.
  */
 
-#pragma once
+#include "kernel.h"
 
-#include "common.h"
 
-typedef struct
+double
+NXPMPXx6250A_calculateOutput(double * inputVariables, double *  outputVariables)
 {
-	CommonCommandLineArguments common;
-} CommandLineArguments;
+	double  vSupplyADC;
+	double  vSensorADC;
+	double  calibratedValue;
 
-/**
- *	@brief	Print out command line usage.
- */
-void
-printUsage(void);
+	vSupplyADC  = inputVariables[kNXPMPXx6250AInputVariableIndexVsupplyADC];
+	vSensorADC  = inputVariables[kNXPMPXx6250AInputVariableIndexVsensorADC];
 
-/**
- *	@brief	Get command line arguments.
- *
- *	@param	argc		: argument count from main().
- *	@param	argv		: argument vector from main().
- *	@param	arguments	: Pointer to struct to store arguments.
- *	@return			: `kCommonConstantReturnTypeSuccess` if successful,
- *				   else `kCommonConstantReturnTypeError`.
- */
-CommonConstantReturnType
-getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  arguments);
+	calibratedValue = ((vSensorADC / vSupplyADC) + kNXPMPXx6250ASensorCalibrationConstant1) / kNXPMPXx6250ASensorCalibrationConstant2;
+	outputVariables[kNXPMPXx6250AOutputVariableIndexCalibratedSensorOutput] = calibratedValue;
+
+	return calibratedValue;
+}
