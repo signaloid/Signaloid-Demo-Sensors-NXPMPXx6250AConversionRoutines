@@ -1,5 +1,5 @@
 /*
- *	Copyright (c) 2026, Signaloid.
+ *	Copyright (c) 2024-2026, Signaloid.
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -21,6 +21,8 @@
  */
 
 #pragma once
+
+#include <stddef.h>
 
 
 /*
@@ -68,3 +70,52 @@ typedef enum
  */
 double
 NXPMPXx6250A_calculateOutput(double * inputVariables, double *  outputVariables);
+
+/**
+ *	@brief	Samples the sensor's input variables from their UxHw distributional values,
+ *		using `UxHwDoubleUniformDist()` on the sensor's calibrated input ranges. In UxHw
+ *		mode this yields a full input distribution per variable; in the native compat
+ *		build it yields a single random sample per call (see `submodules/compat/uxhw.c`).
+ *		This is the single place in the codebase that samples the sensor's inputs; both
+ *		`NXPMPXx6250ACalculateOutputUxHw()`'s single evaluation and
+ *		`NXPMPXx6250ACalculateOutputMonteCarlo()`'s per-iteration loop draw fresh
+ *		samples through this function.
+ *
+ *	@param	inputVariables	: Array of size `kNXPMPXx6250AInputVariableIndexMax` to fill.
+ */
+void
+NXPMPXx6250ASetInputVariablesViaUxHwCall(double * inputVariables);
+
+/**
+ *	@brief	UxHw-mode calculation kernel. Performs a single distributional evaluation of the
+ *		sensor conversion routine (see `NXPMPXx6250AUxHw()`) and writes the result into
+ *		`outputVariables` and into `monteCarloOutputSamples[0]`.
+ *
+ *		Takes no command-line state: this demo's UxHw path reads no field of
+ *		`CommandLineArguments`, so there is nothing for the caller to unpack.
+ *
+ *	@param	outputVariables		: Array of size `kNXPMPXx6250AOutputVariableIndexMax` to fill.
+ *	@param	monteCarloOutputSamples	: Single-element array for the distributional result.
+ *	@return	double			: Returns the calibrated sensor output.
+ */
+double
+NXPMPXx6250ACalculateOutputUxHw(
+	double *    outputVariables,
+	double *    monteCarloOutputSamples);
+
+/**
+ *	@brief	Monte Carlo calculation kernel. Runs `numberOfMonteCarloIterations`
+ *		independent evaluations of the sensor conversion routine (see
+ *		`NXPMPXx6250AMonteCarlo()`) into `monteCarloOutputSamples` and writes the last
+ *		sample into `outputVariables`.
+ *
+ *	@param	numberOfMonteCarloIterations	: Number of Monte Carlo iterations to run.
+ *	@param	outputVariables		: Array of size `kNXPMPXx6250AOutputVariableIndexMax` to fill.
+ *	@param	monteCarloOutputSamples	: Array of `numberOfMonteCarloIterations` doubles, filled with samples.
+ *	@return	double			: Returns the calibrated sensor output of the last sample.
+ */
+double
+NXPMPXx6250ACalculateOutputMonteCarlo(
+	size_t      numberOfMonteCarloIterations,
+	double *    outputVariables,
+	double *    monteCarloOutputSamples);
