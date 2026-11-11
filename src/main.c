@@ -1,5 +1,5 @@
 /*
- *	Copyright (c) 2026, Signaloid.
+ *	Copyright (c) 2024-2026, Signaloid.
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -27,50 +27,36 @@
 #include <stddef.h>
 #include <stdbool.h>
 #include <string.h>
-#include <uxhw.h>
 #include "utilities.h"
 #include "kernel.h"
 
-/**
- *	@brief  Sets the Input Variables via call to UxHw Parametric function.
- *
- *	@param  inputVariables	: An array of double values, where the function writes the distributional data.
- */
-static void
-setInputVariablesViaUxHwCall(double * inputVariables)
-{
-	inputVariables[kNXPMPXx6250AInputVariableIndexVsensorADC] = UxHwDoubleUniformDist(
-		kNXPMPXx6250ADefaultInputDistributionVsensorUniformDistLow,
-		kNXPMPXx6250ADefaultInputDistributionVsensorUniformDistHigh
-	);
-	inputVariables[kNXPMPXx6250AInputVariableIndexVsupplyADC] = UxHwDoubleUniformDist(
-		kNXPMPXx6250ADefaultInputDistributionVsupplyUniformDistLow,
-		kNXPMPXx6250ADefaultInputDistributionVsupplyUniformDistHigh
-	);
+#ifdef NO_OS_AVAILABLE
 
-	return;
-}
+void
+returnZeroNoOS(void);
+#endif
 
 int
 main(int argc, char *  argv[])
 {
 	CommandLineArguments arguments = { 0 };
 
-	double          calibratedSensorOutput;
-	double *        monteCarloOutputSamples = NULL;
-	clock_t         start;
-	clock_t         end;
-	double          cpuTimeUsedSeconds;
-	double          inputVariables[kNXPMPXx6250AInputVariableIndexMax];
-	double          outputVariables[kNXPMPXx6250AOutputVariableIndexMax];
-	const char *    outputVariableNames[kNXPMPXx6250AOutputVariableIndexMax] = {
+	double *                    monteCarloOutputSamples = NULL;
+	clock_t                     start               = 0;
+	clock_t                     end                 = 0;
+	double                      cpuTimeUsedSeconds  = 0.0;
+	double                      outputVariables[kNXPMPXx6250AOutputVariableIndexMax] = { 0 };
+	const char *                outputVariableNames[kNXPMPXx6250AOutputVariableIndexMax] = {
 		"calibratedSensorOutput"
 	};
-	const char *    outputVariableDescriptions[kNXPMPXx6250AOutputVariableIndexMax] = {
+	const char *                outputVariableDescriptions[kNXPMPXx6250AOutputVariableIndexMax] = {
 		"Calibrated sensor output in kPa"
 	};
-	const char *    applicationDescription = "NXP MPXx6250A Conversion Routines";
-	MeanAndVariance meanAndVariance;
+	kOutputVariableTypeIndex    outputVariableTypes[kNXPMPXx6250AOutputVariableIndexMax] = {
+		[kNXPMPXx6250AOutputVariableIndexCalibratedSensorOutput] = kOutputVariableTypeDistribution
+	};
+	const char *                applicationDescription = "NXP MPXx6250A Conversion Routines";
+	MeanAndVariance             meanAndVariance;
 
 	/*
 	 *	Get command line arguments.
@@ -80,14 +66,25 @@ main(int argc, char *  argv[])
 		return kCommonConstantReturnTypeError;
 	}
 
-	if (arguments.common.isMonteCarloMode)
-	{
-		monteCarloOutputSamples = (double *) checkedMalloc(
-			arguments.common.numberOfMonteCarloIterations * sizeof(double),
-			__FILE__,
-			__LINE__
-		);
-	}
+	/*
+	 *	`monteCarloOutputSamples` is used even outside Monte Carlo mode:
+	 *	`NXPMPXx6250ACalculateOutputUxHw` writes its single distributional evaluation into
+	 *	`monteCarloOutputSamples[0]`, and `numberOfMonteCarloIterations` defaults to 1 in
+	 *	that case.
+	 */
+	monteCarloOutputSamples = (double *) checkedMalloc(
+		(arguments.common.numberOfMonteCarloIterations > 0
+		    ? arguments.common.numberOfMonteCarloIterations
+		    : 1) * sizeof(double),
+		__FILE__,
+		__LINE__
+	);
+
+	const bool isScalarOutputSelected = isSelectedOutputScalar(
+		&arguments.common,
+		outputVariableTypes,
+		kNXPMPXx6250AOutputVariableIndexMax
+	);
 
 	/*
 	 *	Start timing.
@@ -97,37 +94,39 @@ main(int argc, char *  argv[])
 		start = clock();
 	}
 
-	for (size_t ii = 0; ii < arguments.common.numberOfMonteCarloIterations; ii++)
-	{
-		/*
-		 *	Set input distribution values, inside the main computation
-		 *	loop, so that it can also generate samples in the native
-		 *	Monte Carlo Execution Mode.
-		 */
-		setInputVariablesViaUxHwCall(inputVariables);
-
-		calibratedSensorOutput = NXPMPXx6250A_calculateOutput(inputVariables, outputVariables);
-
-		/*
-		 *	For this application, calibratedSensorOutput is the item we track.
-		 */
-		if (arguments.common.isMonteCarloMode)
-		{
-			monteCarloOutputSamples[ii] = calibratedSensorOutput;
-		}
-	}
-
 	/*
-	 *	If not doing Laplace version, then approximate the cost of the third phase of
-	 *	Monte Carlo (post-processing), by calculating the mean and variance.
+	 *	Dispatch to the mode-specific kernel. The Monte Carlo loop (when applicable) lives
+	 *	inside `NXPMPXx6250ACalculateOutputMonteCarlo`; UxHw mode runs a single
+	 *	distributional evaluation inside `NXPMPXx6250ACalculateOutputUxHw`. Both take what
+	 *	they need as scalars — the UxHw path needs nothing at all — so this is the only
+	 *	place that unpacks `CommandLineArguments` for the kernel.
 	 */
 	if (arguments.common.isMonteCarloMode)
 	{
-		meanAndVariance = calculateMeanAndVarianceOfDoubleSamples(
-			monteCarloOutputSamples,
-			arguments.common.numberOfMonteCarloIterations
+		NXPMPXx6250ACalculateOutputMonteCarlo(
+			arguments.common.numberOfMonteCarloIterations,
+			outputVariables,
+			monteCarloOutputSamples
 		);
-		calibratedSensorOutput = meanAndVariance.mean;
+
+		/*
+		 *	If not doing Laplace version, then approximate the cost of the third phase of
+		 *	Monte Carlo (post-processing), by calculating the mean and variance. This
+		 *	output is a distribution, so the mean of the samples is written back into
+		 *	`outputVariables` for downstream consumers.
+		 */
+		if (!isScalarOutputSelected)
+		{
+			meanAndVariance = calculateMeanAndVarianceOfDoubleSamples(
+				monteCarloOutputSamples,
+				arguments.common.numberOfMonteCarloIterations
+			);
+			outputVariables[kNXPMPXx6250AOutputVariableIndexCalibratedSensorOutput] = meanAndVariance.mean;
+		}
+	}
+	else
+	{
+		NXPMPXx6250ACalculateOutputUxHw(outputVariables, monteCarloOutputSamples);
 	}
 
 	/*
@@ -150,7 +149,8 @@ main(int argc, char *  argv[])
 			outputVariables,
 			outputVariableNames,
 			kNXPMPXx6250AOutputVariableIndexMax,
-			applicationDescription
+			applicationDescription,
+			outputVariableTypes
 		);
 	}
 	else
@@ -161,7 +161,8 @@ main(int argc, char *  argv[])
 			outputVariables,
 			outputVariableNames,
 			outputVariableDescriptions,
-			monteCarloOutputSamples
+			monteCarloOutputSamples,
+			outputVariableTypes
 		);
 	}
 
@@ -191,17 +192,25 @@ main(int argc, char *  argv[])
 
 	/*
 	 *	Save Monte carlo outputs in an output file.
-	 *	Free dynamically-allocated memory.
 	 */
 	if (arguments.common.isMonteCarloMode)
 	{
 		saveMonteCarloDoubleDataToDataDotOutFile(
 			monteCarloOutputSamples, (uint64_t) (cpuTimeUsedSeconds * 1000000),
-			arguments.common.numberOfMonteCarloIterations
+			isScalarOutputSelected ? 1 : arguments.common.numberOfMonteCarloIterations
 		);
-
-		free(monteCarloOutputSamples);
 	}
 
+	/*
+	 *	Free dynamically-allocated memory.
+	 */
+	free(monteCarloOutputSamples);
+
+#ifdef NO_OS_AVAILABLE
+	returnZeroNoOS();
+#else
+
 	return 0;
+
+#endif
 }

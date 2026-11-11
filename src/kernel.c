@@ -1,5 +1,5 @@
 /*
- *	Copyright (c) 2026, Signaloid.
+ *	Copyright (c) 2024-2026, Signaloid.
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,10 @@
  *	SOFTWARE.
  */
 
+#include <uxhw.h>
 #include "kernel.h"
+#include "nxp-mpxx6250a-uxhw.h"
+#include "nxp-mpxx6250a-monte-carlo.h"
 
 
 double
@@ -37,4 +40,49 @@ NXPMPXx6250A_calculateOutput(double * inputVariables, double *  outputVariables)
 	outputVariables[kNXPMPXx6250AOutputVariableIndexCalibratedSensorOutput] = calibratedValue;
 
 	return calibratedValue;
+}
+
+void
+NXPMPXx6250ASetInputVariablesViaUxHwCall(double * inputVariables)
+{
+	inputVariables[kNXPMPXx6250AInputVariableIndexVsensorADC] = UxHwDoubleUniformDist(
+		kNXPMPXx6250ADefaultInputDistributionVsensorUniformDistLow,
+		kNXPMPXx6250ADefaultInputDistributionVsensorUniformDistHigh
+	);
+	inputVariables[kNXPMPXx6250AInputVariableIndexVsupplyADC] = UxHwDoubleUniformDist(
+		kNXPMPXx6250ADefaultInputDistributionVsupplyUniformDistLow,
+		kNXPMPXx6250ADefaultInputDistributionVsupplyUniformDistHigh
+	);
+
+	return;
+}
+
+double
+NXPMPXx6250ACalculateOutputUxHw(
+	double *    outputVariables,
+	double *    monteCarloOutputSamples)
+{
+	double  inputVariables[kNXPMPXx6250AInputVariableIndexMax];
+	double  calibratedSensorOutput;
+
+	calibratedSensorOutput      = NXPMPXx6250AUxHw(inputVariables, outputVariables);
+	monteCarloOutputSamples[0]  = calibratedSensorOutput;
+
+	return calibratedSensorOutput;
+}
+
+double
+NXPMPXx6250ACalculateOutputMonteCarlo(
+	size_t      numberOfMonteCarloIterations,
+	double *    outputVariables,
+	double *    monteCarloOutputSamples)
+{
+	double inputVariables[kNXPMPXx6250AInputVariableIndexMax];
+
+	return NXPMPXx6250AMonteCarlo(
+		numberOfMonteCarloIterations,
+		inputVariables,
+		outputVariables,
+		monteCarloOutputSamples
+	);
 }

@@ -2,7 +2,7 @@
 [<img src="https://assets.signaloid.io/add-to-signaloid-cloud-logo-light-latest.png#gh-light-mode-only" alt="[Add to signaloid.io]" height="30">](https://signaloid.io/repositories?connect=https://github.com/signaloid/Signaloid-Demo-Sensors-NXPMPXx6250AConversionRoutines#gh-light-mode-only)
 
 # NXP MPXx6250A Sensor Calibration Use Case
-Example demonstrating real-time output uncertainty estimation for calibrated ADC values from the MPXx6250A sensor[^1].
+Example demonstrating real-time output distribution estimation for calibrated ADC values from the MPXx6250A sensor[^1].
 
 ## Introduction
 The MPXx6250A is a 20 to 250 kPa range integrated pressure sensor.
@@ -42,16 +42,16 @@ In order to compile and run this application in the native Monte Carlo mode:
 
 0. Install dependencies (e.g., on Linux):
 ```
-sudo apt-get install libgsl-dev libgslcblas0
+sudo apt-get install -y build-essential libgsl-dev
 ```
-1. Compile natively (e.g., on Linux):
+1. Compile natively from the repository root:
 ```
-cd src/
-gcc -I. -I/opt/local/include main.c kernel.c utilities.c common.c uxhw.c -L/opt/local/lib -o native-exe -lgsl -lgslcblas -lm
+make local-build
 ```
-2. Run the application in the MonteCarlo mode, using (`-M`) command-line option:
+This builds the executable `demo-native-mc`.
+2. Run the application in the Monte Carlo mode, using (`-M`) command-line option:
 ```
-./native-exe -M 10000
+./demo-native-mc -S 0 -M 10000
 ```
 The above program runs 10000 Monte Carlo iterations.
 
@@ -61,13 +61,13 @@ cat data.out
 ```
 
 ## Inputs
-The inputs to the MPXx6250A sensor conversion algorithms are the raw ADC taken from the voltage output of the sensor ($V_{out}$)
-as well as the supply voltage of the sensor ($V_{s}$). The algorithm models the ADC quantization error as well as the uncertainty
+The inputs to the MPXx6250A sensor conversion algorithms are the raw ADC taken from the voltage output of the sensor ($`V_{out}`$)
+as well as the supply voltage of the sensor ($`V_{s}`$). The algorithm models the ADC quantization error as well as the variation
 in the supply voltage using uniform distributions.
 
-The uncertainty in $V_{out}$ is modeled as a (`UniformDist(2.3, 2.7)`) Volts.
+The distribution of $`V_{out}`$ is modeled as a (`UniformDist(2.3, 2.7)`) Volts.
 
-The uncertainty in $V_{s}$ is modeled as a (`UniformDist(4.8, 5.4)`) Volts.
+The distribution of $`V_{s}`$ is modeled as a (`UniformDist(4.8, 5.4)`) Volts.
 
 
 
@@ -86,13 +86,12 @@ Following is an example output, using Signaloid's C0Pro-S core.
 Example: MPXx6250 sensor conversion routines - Signaloid version
 
 Usage: Valid command-line arguments are:
-        [-o, --output <Path to output CSV file : str>] (Specify the output file.)
-        [-S, --select-output <output : int>] (Compute 0-indexed output, by default 0.)
-        [-M, --multiple-executions <Number of executions : int (Default: 1)>] (Repeated execute kernel for benchmarking.)
-        [-T, --time] (Timing mode: Times and prints the timing of the kernel execution.)
-        [-v, --verbose] (Verbose mode: Prints extra information about demo execution.)
-        [-j, --json] (Print output in JSON format.)
-        [-h, --help] (Display this help message.)
+	[-o, --output <Path to output CSV file : str>] (Specify the output file.)
+	[-S, --select-output <output : int>] (Compute 0-indexed output, by default 0.)
+	[-M, --multiple-executions <Number of executions : int (Default: 1)>] (Repeated execute kernel for benchmarking.)
+	[-T, --time] (Timing mode: Times and prints the timing of the kernel execution.)
+	[-j, --json] (Print output in JSON format.)
+	[-h, --help] (Display this help message.)
 ```
 
 
